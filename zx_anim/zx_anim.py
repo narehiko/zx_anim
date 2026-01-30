@@ -1,6 +1,7 @@
 import sys, os, json, ctypes
 import keyboard
 import winsound
+
 from PyQt5.QtWidgets import QApplication, QWidget
 from PyQt5.QtGui import QPainter, QPixmap, QFont, QIcon
 from PyQt5.QtCore import Qt, QTimer, QRect
@@ -10,9 +11,11 @@ ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("zx_anim")
 
 # ================= RESOURCE PATH =================
 def resource_path(path):
-    if hasattr(sys, "_MEIPASS"):
-        return os.path.join(sys._MEIPASS, path)
-    return os.path.join(os.path.abspath("."), path)
+    try:
+        base = sys._MEIPASS
+    except Exception:
+        base = os.path.abspath(".")
+    return os.path.join(base, path)
 
 # ================= CONFIG =================
 FPS = 240
@@ -26,11 +29,11 @@ class ZXAnim(QWidget):
         self.setWindowFlags(
             Qt.FramelessWindowHint |
             Qt.WindowStaysOnTopHint |
-            Qt.Window
+            Qt.Tool
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.resize(260, 200)
-        self.setWindowTitle("anime_zx")
+        self.setWindowTitle("ZX Anim")
         self.setWindowIcon(QIcon(resource_path("icon.ico")))
 
         # ============== LOAD STATE ==============
@@ -44,9 +47,13 @@ class ZXAnim(QWidget):
         # ============== LOAD FRAMES ==============
         self.frames = []
         frames_dir = resource_path("frames")
-        for f in sorted(os.listdir(frames_dir)):
-            if f.lower().endswith(".png"):
-                self.frames.append(QPixmap(os.path.join(frames_dir, f)))
+
+        for name in sorted(os.listdir(frames_dir)):
+            if name.lower().endswith(".png"):
+                self.frames.append(
+                    QPixmap(resource_path(f"frames/{name}"))
+                )
+
         if not self.frames:
             raise RuntimeError("Frame PNG tidak ditemukan")
 
@@ -75,25 +82,21 @@ class ZXAnim(QWidget):
         x = keyboard.is_pressed("x")
         home = keyboard.is_pressed("home")
 
-        # Z / X → 1 frame per tap
+        # Z / X → advance 1 frame per tap
         if (z and not self.z_last) or (x and not self.x_last):
             self.frame_index = (self.frame_index + 1) % len(self.frames)
 
         # HOME → LOCK / UNLOCK
         if home and not self.home_last:
             self.locked = not self.locked
-            if self.locked:
-                winsound.PlaySound(
-                    resource_path("lock.wav"),
-                    winsound.SND_FILENAME | winsound.SND_ASYNC
-                )
-                self.notif = "LOCKED"
-            else:
-                winsound.PlaySound(
-                    resource_path("unlock.wav"),
-                    winsound.SND_FILENAME | winsound.SND_ASYNC
-                )
-                self.notif = "UNLOCKED"
+            sound = "lock.wav" if self.locked else "unlock.wav"
+
+            winsound.PlaySound(
+                resource_path(sound),
+                winsound.SND_FILENAME | winsound.SND_ASYNC
+            )
+
+            self.notif = "LOCKED" if self.locked else "UNLOCKED"
             self.notif_timer = 90
 
         self.z_last = z
@@ -138,7 +141,7 @@ class ZXAnim(QWidget):
             p.setFont(QFont("Segoe UI", 12, QFont.Bold))
             p.setPen(Qt.red if self.locked else Qt.green)
             p.drawText(
-                QRect(0, wh - 26, ww, 20),
+                QRect(0, wh - 28, ww, 24),
                 Qt.AlignCenter,
                 self.notif
             )
@@ -153,7 +156,8 @@ class ZXAnim(QWidget):
             }, f)
 
 # ================= RUN =================
-app = QApplication(sys.argv)
-w = ZXAnim()
-w.show()
-sys.exit(app.exec_())
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    w = ZXAnim()
+    w.show()
+    sys.exit(app.exec_())
