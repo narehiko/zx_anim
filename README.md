@@ -1,5 +1,11 @@
 # ZX Anim
 
+![ZX Anim Preview](preview/preview.gif)
+
+## Lock / Unlock State
+
+![Locked](preview/locked.png) ![Unlocked](preview/unlocked.png)
+
 A lightweight ZX animation overlay for osu!  
 The animation reacts in real time to Z and X key inputs.
 
@@ -11,5 +17,15 @@ The animation reacts in real time to Z and X key inputs.
 
 ## Build
 ```bash
-pip install -r requirements.txt
-pyinstaller --onefile --noconsole zx_anim.py
+pyinstaller --noconsole ^
+--icon=icon.ico ^
+--add-data "frames;frames" ^
+--add-data "sounds;sounds" ^
+--name zx_anim ^
+zx_anim.py
+
+```
+
+## Credits
+
+- ZX animation frames are based on original artwork by **@11922960_ze**
