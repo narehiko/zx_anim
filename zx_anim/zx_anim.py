@@ -1,4 +1,5 @@
-import sys, os, json, ctypes
+import sys, os, json
+import ctypes
 import keyboard
 import winsound
 
@@ -7,7 +8,7 @@ from PyQt5.QtGui import QPainter, QPixmap, QFont, QIcon
 from PyQt5.QtCore import Qt, QTimer, QRect
 
 # ================= WINDOWS TASKBAR ID =================
-ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("zx_anim")
+ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("zx_anim.overlay")
 
 # ================= RESOURCE PATH =================
 def resource_path(path):
@@ -19,7 +20,7 @@ def resource_path(path):
 
 # ================= CONFIG =================
 FPS = 240
-POS_FILE = "position.json"
+POS_FILE = os.path.join(os.getcwd(), "position.json")
 
 class ZXAnim(QWidget):
     def __init__(self):
@@ -28,8 +29,7 @@ class ZXAnim(QWidget):
         # ============== WINDOW ==============
         self.setWindowFlags(
             Qt.FramelessWindowHint |
-            Qt.WindowStaysOnTopHint |
-            Qt.Tool
+            Qt.WindowStaysOnTopHint
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.resize(260, 200)
@@ -39,14 +39,20 @@ class ZXAnim(QWidget):
         # ============== LOAD STATE ==============
         self.locked = False
         if os.path.exists(POS_FILE):
-            with open(POS_FILE, "r") as f:
-                d = json.load(f)
-                self.move(d.get("x", 200), d.get("y", 200))
-                self.locked = d.get("locked", False)
+            try:
+                with open(POS_FILE, "r") as f:
+                    d = json.load(f)
+                    self.move(d.get("x", 200), d.get("y", 200))
+                    self.locked = d.get("locked", False)
+            except Exception:
+                pass
 
         # ============== LOAD FRAMES ==============
         self.frames = []
         frames_dir = resource_path("frames")
+
+        if not os.path.exists(frames_dir):
+            raise RuntimeError("Folder 'frames' tidak ditemukan")
 
         for name in sorted(os.listdir(frames_dir)):
             if name.lower().endswith(".png"):
@@ -59,7 +65,7 @@ class ZXAnim(QWidget):
 
         self.frame_index = 0
 
-        # ============== INPUT STATE (EDGE) ==============
+        # ============== INPUT EDGE STATE ==============
         self.z_last = False
         self.x_last = False
         self.home_last = False
@@ -82,7 +88,7 @@ class ZXAnim(QWidget):
         x = keyboard.is_pressed("x")
         home = keyboard.is_pressed("home")
 
-        # Z / X → advance 1 frame per tap
+        # Z / X → 1 frame per tap (anti spam)
         if (z and not self.z_last) or (x and not self.x_last):
             self.frame_index = (self.frame_index + 1) % len(self.frames)
 
@@ -90,11 +96,13 @@ class ZXAnim(QWidget):
         if home and not self.home_last:
             self.locked = not self.locked
             sound = "lock.wav" if self.locked else "unlock.wav"
+            sound_path = resource_path(sound)
 
-            winsound.PlaySound(
-                resource_path(sound),
-                winsound.SND_FILENAME | winsound.SND_ASYNC
-            )
+            if os.path.exists(sound_path):
+                winsound.PlaySound(
+                    sound_path,
+                    winsound.SND_FILENAME | winsound.SND_ASYNC
+                )
 
             self.notif = "LOCKED" if self.locked else "UNLOCKED"
             self.notif_timer = 90
@@ -148,16 +156,20 @@ class ZXAnim(QWidget):
 
     # ================= SAVE STATE =================
     def closeEvent(self, e):
-        with open(POS_FILE, "w") as f:
-            json.dump({
-                "x": self.x(),
-                "y": self.y(),
-                "locked": self.locked
-            }, f)
+        try:
+            with open(POS_FILE, "w") as f:
+                json.dump({
+                    "x": self.x(),
+                    "y": self.y(),
+                    "locked": self.locked
+                }, f)
+        except Exception:
+            pass
 
 # ================= RUN =================
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon(resource_path("icon.ico")))
     w = ZXAnim()
     w.show()
     sys.exit(app.exec_())
