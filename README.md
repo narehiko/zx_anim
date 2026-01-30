@@ -19,6 +19,7 @@ The animation reacts in real time to Z and X key inputs.
 ```bash
 pip install -r requirements.txt
 pyinstaller --onefile --noconsole zx_anim.py
+```
 
 ## Credits
 
