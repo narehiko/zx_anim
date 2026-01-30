@@ -22,7 +22,6 @@ pyinstaller --onefile --noconsole ^
 --add-data "frames;frames" ^
 --add-data "lock.wav;." ^
 --add-data "unlock.wav;." ^
---name zx_anim ^
 zx_anim.py
 ```
 
