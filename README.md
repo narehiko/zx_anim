@@ -1,14 +1,12 @@
-# ZX Anim
-
-![ZX Anim Preview](preview/preview.png)
+# ZX Anim ![ZX Anim Preview](preview/preview.png)
 
 ## Lock / Unlock State
 
 **Locked**
-![Locked](preview/locked.png)
+!(preview/locked.png)
 
 **Unlocked**
-![Unlocked](preview/unlocked.png)
+!(preview/unlocked.png)
 
 A lightweight ZX animation overlay for osu!  
 The animation reacts in real time to Z and X key inputs.
