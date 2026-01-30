@@ -28,19 +28,6 @@ The animation reacts **in real time** to your **Z / X key inputs**, making strea
 
 ## How to Use
 
-### Option 1 — Use the Executable (Recommended)
-
-1. Download the project from GitHub.
-2. Extract the ZIP file.
-3. Open the extracted folder.
-4. Run **`zx_anim.exe`**.
-
-> No Python installation is required for the executable version.
-
----
-
-### Option 2 — Build from Source (Developer)
-
 #### 1. Download or clone the repository
 
 ```bash
