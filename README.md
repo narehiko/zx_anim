@@ -1,6 +1,6 @@
 # ZX Anim
 
-![ZX Anim Preview](preview/preview.png)
+![ZX Anim Preview](preview/preview.gif)
 
 ## Lock / Unlock State
 
