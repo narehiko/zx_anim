@@ -1,6 +1,5 @@
-__pycache__/
-*.pyc
-build/
 dist/
-*.exe
-.env
+build/
+__pycache__/
+*.spec
+position.json

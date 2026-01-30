@@ -1,2 +1,3 @@
-keyboard
+z, x, and home keyboard button
+speaker, headset or earphone.
 PyQt5
