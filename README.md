@@ -17,8 +17,13 @@ The animation reacts in real time to Z and X key inputs.
 
 ## Build
 ```bash
-pip install -r requirements.txt
-pyinstaller --onefile --noconsole zx_anim.py
+pyinstaller --noconsole ^
+--icon=icon.ico ^
+--add-data "frames;frames" ^
+--add-data "sounds;sounds" ^
+--name zx_anim ^
+zx_anim.py
+
 ```
 
 ## Credits
