@@ -34,7 +34,6 @@ The animation reacts **in real time** to your keyboard inputs, making streams an
 ## How to Use
 
 #### 1. Download or clone the repository
-Bash
 git clone [https://github.com/USERNAME/zx_anim.git](https://github.com/USERNAME/zx_anim.git)
 cd zx_anim
 
@@ -43,17 +42,14 @@ Or download the ZIP file and extract it.
 #### 2. Install dependencies
 Make sure you have Python installed, then run:
 
-Bash
 pip install -r requirements.txt
 
 #### 3. Run the App
-Bash
 python zx_anim.py
 
 #### 4. Build the executable (Optional)
 If you want to compile it into a single .exe file so you don't need Python installed next time, run this PyInstaller command:
 
-Bash
 pyinstaller --onefile --noconsole --icon=icon.ico --add-data "frames;frames" --add-data "lock.wav;." --add-data "unlock.wav;." zx_anim.py
 
 * The executable will be generated in the dist/ folder.
