@@ -2,7 +2,10 @@ import sys, os, json, ctypes
 import keyboard
 import winsound
 
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QFormLayout, QLineEdit, QPushButton, QMessageBox
+from PyQt5.QtWidgets import (
+    QApplication, QWidget, QSystemTrayIcon, QMenu, QAction,
+    QDialog, QVBoxLayout, QFormLayout, QLineEdit, QPushButton, QMessageBox
+)
 from PyQt5.QtGui import QPainter, QPixmap, QFont, QIcon
 from PyQt5.QtCore import Qt, QTimer, QRect, pyqtSignal, QObject
 
@@ -86,9 +89,6 @@ class SettingsWindow(QDialog):
         layout = QVBoxLayout()
         self.form_layout = QFormLayout()
         self.inputs = {}
-
-        # Membaca konfigurasi saat ini dan membuat form input secara dinamis
-        # Misalnya: {"q": "A"} -> Input untuk Folder "A" isinya "q"
         for key, folder in self.config_mgr.settings["keys"].items():
             input_field = QLineEdit(key)
             self.inputs[folder] = input_field
@@ -96,7 +96,6 @@ class SettingsWindow(QDialog):
 
         layout.addLayout(self.form_layout)
 
-        # Tombol Simpan
         save_btn = QPushButton("Simpan & Terapkan")
         save_btn.clicked.connect(self.save_settings)
         layout.addWidget(save_btn)
@@ -105,26 +104,22 @@ class SettingsWindow(QDialog):
 
     def save_settings(self):
         new_keys = {}
-        # Mengambil data dari text box
         for folder, line_edit in self.inputs.items():
             new_key = line_edit.text().strip().lower()
             if new_key:
                 new_keys[new_key] = folder
 
-        # 1. Simpan ke ConfigManager & File JSON
         self.config_mgr.settings["keys"] = new_keys
         with open(self.config_mgr.config_file, "w") as f:
             json.dump(self.config_mgr.settings, f)
 
-        # 2. Update InputHandler secara dinamis (Dynamic Reconfiguration)
-        keyboard.unhook_all() # Lepas semua deteksi keyboard lama
+        keyboard.unhook_all()
         self.input_handler.key_map = new_keys
         self.input_handler.active_keys.clear()
-        keyboard.hook(self.input_handler._on_key_event) # Pasang deteksi baru
+        keyboard.hook(self.input_handler._on_key_event)
 
-        # 3. Beritahu pengguna
         QMessageBox.information(self, "Sukses", "Keybind berhasil diperbarui!\nCoba tekan tombol barumu.")
-        self.accept() # Tutup jendela dialog
+        self.accept()
 
 # ================= 4. VIEW (UI Overlay) =================
 class OverlayWindow(QWidget):
@@ -139,7 +134,6 @@ class OverlayWindow(QWidget):
         self.resize(260, 200)
         self.setWindowIcon(QIcon(resource_path("icon.ico")))
 
-        # --- Inisialisasi State yang terlewat ---
         self.locked = self.config_mgr.position.get("locked", False)
         self.move(self.config_mgr.position.get("x", 0), self.config_mgr.position.get("y", 0))
         
@@ -149,21 +143,17 @@ class OverlayWindow(QWidget):
         self.notif = ""
         self.notif_timer = 0
 
-        # Load gambar dan siapkan indeks
         self._load_frames()
 
-        # Hubungkan sinyal dari keyboard ke fungsi UI
         self.input_handler.keyPressed.connect(self.on_key_press)
         self.input_handler.keyReleased.connect(self.on_key_release)
         self.input_handler.toggleLock.connect(self.on_toggle_lock)
 
-        # Mulai timer animasi
         self.anim_timer = QTimer(self)
         self.anim_timer.timeout.connect(self.update_animation)
         self.anim_timer.start(1000 // self.settings["fps"])
         self.frame_counter = 0
 
-        # --- Setup System Tray ---
         self.setup_tray_icon()
 
     def _load_frames(self):
@@ -190,29 +180,25 @@ class OverlayWindow(QWidget):
         self.lock_action.triggered.connect(self.toggle_lock_from_tray)
         tray_menu.addAction(self.lock_action)
 
-        # Action: Settings (BARU)
+        # Action: Settings
         settings_action = QAction("Pengaturan Keybind", self)
         settings_action.triggered.connect(self.open_settings)
         tray_menu.addAction(settings_action)
 
         tray_menu.addSeparator()
 
-        # Action: Keluar
-        quit_action = QAction("Keluar", self)
+        # Action: Exit
+        quit_action = QAction("Exit", self)
         quit_action.triggered.connect(self.quit_app)
         tray_menu.addAction(quit_action)
 
         self.tray_icon.setContextMenu(tray_menu)
         self.tray_icon.show()
 
-    # Tambahkan fungsi ini di bawah setup_tray_icon
     def open_settings(self):
         """Membuka jendela pengaturan di atas aplikasi lain."""
-        # Melewatkan referensi (config, input, dan jendela ini sendiri) ke SettingsWindow
         self.settings_window = SettingsWindow(self.config_mgr, self.input_handler, self)
-        # Menjaga agar jendela settings tampil di atas (berguna jika main game borderless)
         self.settings_window.setWindowFlags(self.settings_window.windowFlags() | Qt.WindowStaysOnTopHint)
-        self.settings_window.exec_() # exec_() membuat jendela bersifat modal (fokus ke jendela ini)
 
     def toggle_lock_from_tray(self):
         self.on_toggle_lock()
@@ -305,12 +291,10 @@ class OverlayWindow(QWidget):
             p.drawText(QRect(0, self.height()-26, self.width(), 22), Qt.AlignCenter, self.notif)
 
     def closeEvent(self, e):
-        # Saat ditutup manual, panggil logika exit yang aman
         self.quit_app()
 
 # ================= RUN =================
 if __name__ == "__main__":
-    # Menjaga agar aplikasi tidak langsung mati saat jendela utama disembunyikan
     QApplication.setQuitOnLastWindowClosed(False) 
     
     app = QApplication(sys.argv)
