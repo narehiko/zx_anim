@@ -1,0 +1,25 @@
+{
+  "id": "ikuyo",
+  "name": "Ikuyo Kita",
+  "canvas": {
+    "width": 585,
+    "height": 427
+  },
+  "default_action": "left",
+  "actions": {
+    "left": {
+      "name": "Left Key",
+      "frames": [
+        "actions/left/1.png",
+        "actions/left/2.png"
+      ]
+    },
+    "right": {
+      "name": "Right Key",
+      "frames": [
+        "actions/right/1.png",
+        "actions/right/2.png"
+      ]
+    }
+  }
+}

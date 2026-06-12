@@ -1,69 +1,156 @@
-# ZX Anim (v2.1)
+# ZX Anim
 
-![ZX Anim Preview](preview/preview.gif)
+ZX Anim is a lightweight keyboard-reactive character overlay for rhythm games
+and livestreams. Ikuyo Kita is included as the default character, and custom
+character packs can be imported from the Settings window.
 
-**ZX Anim** is a lightweight, interactive animation overlay for rhythm games like **osu!**.
-The animation reacts **in real time** to your keyboard inputs, making streams and taps visually synced on screen.
-
----
-
-## 🌟 New in v2.1
-* 🎨 **Chroma Key / Green Screen Mode:** Easily switch the background to bright green or magenta for compatibility with TikTok Live Studio and other streaming apps.
-* ⚙️ **Dynamic Keybind Settings GUI:** Change your active keys directly from the System Tray (no JSON editing required).
-* 🗕 **System Tray Integration:** Runs cleanly in the background without cluttering your Taskbar.
-* 📉 **Optimized Engine:** Rebuilt with an event-driven architecture for zero-lag input detection and smooth hold-key looping.
+![ZX Anim preview](preview/preview.gif)
 
 ## Features
 
-* 🎮 Responsive animation synced with your custom key presses
-* 🖼️ Custom animation frames (PNG)
-* 🔒 Lock / Unlock window position
-* 🔊 Custom lock / unlock sounds
-* 🎥 OBS & TikTok Live Studio compatible
-* 💾 Auto-saves window position, speed, and settings automatically
+- Global keyboard-reactive animation
+- Custom character packs with any number of actions and PNG frames
+- Transparent OBS Browser Source output
+- Movable desktop preview with lock and background controls
+- System tray controls
+- Settings stored in `%APPDATA%\ZX Anim`
+- Windows installer and portable release builds
 
----
+## Run from Source
 
-## How to Use
+```powershell
+python -m pip install -r requirements.txt
+python zx_anim.py
+```
 
-#### 1. Download or clone the repository
-Bash: git clone [https://github.com/USERNAME/zx_anim.git](https://github.com/USERNAME/zx_anim.git)
-cd zx_anim
-(Make sure to run pip install -r requirements.txt if running from source)
+## Controls
 
-#### 2. Run the App
-Double click zx_anim.exe (if you downloaded the release) or run python zx_anim.py.
-The app will appear as an overlay and an icon will be placed in your System Tray (bottom right corner of Windows).
+- `Q` and `W`: Default Ikuyo animation actions
+- `Home`: Lock or unlock the preview position
+- `Ctrl+Home`: Open Settings
+- `Ctrl+G`: Change the desktop preview background
+- Mouse drag: Move the unlocked preview
+- Mouse wheel: Change animation speed
 
-#### 3. Build the Executable (For Developers)
-To compile the app into a single standalone .exe that includes the tray icon and all assets, run:
+## OBS Setup
 
-Bash: 
-pyinstaller --onefile --noconsole --icon=icon.ico --add-data "frames;frames" --add-data "lock.wav;." --add-data "unlock.wav;." --add-data "icon.ico;." zx_anim.py
+1. Start ZX Anim.
+2. Open the tray menu and select **Copy OBS Browser Source URL**.
+3. In OBS, add a **Browser** source.
+4. Paste the URL and set the source size to `585x427`.
+5. Keep **Shutdown source when not visible** disabled.
 
-## Controls & Shortcuts
-* Custom Keys (Default: Q / W) → Advance animation frame
+The Browser Source has a transparent background and does not depend on OBS
+Window Capture support for translucent Qt windows.
 
-* HOME → Lock / Unlock window position
+## Custom Characters
 
-* Ctrl + HOME → Open Settings / Keybind GUI
+Create a folder with a `character.json` file and PNG frames, then use
+**Settings > Import Character**.
 
-* Ctrl + G → Toggle Background Color (Transparent → Green Screen → Pink Screen)
+```text
+my-character/
+  character.json
+  actions/
+    left/
+      1.png
+      2.png
+    right/
+      1.png
+      2.png
+```
 
-* Mouse Drag → Move window (when unlocked)
+Example manifest:
 
-* Mouse Scroll → Adjust animation frame speed
+```json
+{
+  "id": "my-character",
+  "name": "My Character",
+  "canvas": {
+    "width": 585,
+    "height": 427
+  },
+  "default_action": "left",
+  "actions": {
+    "left": {
+      "name": "Left Key",
+      "frames": [
+        "actions/left/1.png",
+        "actions/left/2.png"
+      ]
+    },
+    "right": {
+      "name": "Right Key",
+      "frames": [
+        "actions/right/1.png",
+        "actions/right/2.png"
+      ]
+    }
+  }
+}
+```
 
-* Right-Click System Tray Icon → Access menus or Quit
+Character IDs and action IDs may contain lowercase letters, numbers,
+underscores, and hyphens.
 
-## 🎥 Streaming Guide (OBS & TikTok Live Studio)
-If you get a Black Screen when capturing the application, follow these steps:
+## Build
 
-# For OBS Studio:
-1. Add a Window Capture source and select zx_anim.exe.
-2. In the capture properties, change the Capture Method from "Automatic" to "Windows 10 (1903 and up)". The background will instantly become transparent.
+Build the application folder with PyInstaller:
 
-# For TikTok Live Studio (or apps without Alpha Channel support):
-1. Press Ctrl + G while the overlay is focused to change the background to Green Screen.
-2. Add a Window Capture in your streaming software.
-3. Apply a Chroma Key (Kunci Warna) filter/effect to the capture and select Green. The background will disappear, leaving only your character.
+```powershell
+pyinstaller --clean --noconfirm zx_anim.spec
+```
+
+Build the installer after installing Inno Setup:
+
+```powershell
+iscc installer/zx_anim.iss
+```
+
+The distributable installer is written to `installer/output`. The `dist`
+directory is only a local build artifact and should not be committed or shared
+as the primary installation method.
+
+Pushing a tag such as `v3.0.0` runs the GitHub Actions release workflow, builds
+the installer and portable ZIP, and uploads both to GitHub Releases.
+
+## Maintaining the README
+
+Update this file whenever a change affects installation, controls, OBS setup,
+character pack structure, or the development workflow.
+
+For a normal feature update:
+
+1. Update **Features** when user-visible behavior changes.
+2. Update **Controls** when shortcuts or input behavior change.
+3. Update **OBS Setup** when the capture workflow changes.
+4. Update **Custom Characters** when the manifest format changes.
+5. Update **Build** when dependencies or packaging commands change.
+6. Replace `preview/preview.gif` when the interface or default animation
+   changes significantly.
+
+Keep the README focused on current behavior. Historical changes belong in the
+GitHub Release notes rather than being appended to this file.
+
+## Release Checklist
+
+1. Update `zxanim/__init__.py` with the new semantic version.
+2. Update the fallback `AppVersion` in `installer/zx_anim.iss`.
+3. Update the README if user-facing behavior changed.
+4. Run the tests and build:
+
+   ```powershell
+   python -m unittest discover -s tests
+   pyinstaller --clean --noconfirm zx_anim.spec
+   ```
+
+5. Commit and push the changes.
+6. Create and push a matching version tag:
+
+   ```powershell
+   git tag -a v3.0.0 -m "Release v3.0.0"
+   git push origin main
+   git push origin v3.0.0
+   ```
+
+The tag version is passed to Inno Setup automatically by the release workflow.
