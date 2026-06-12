@@ -11,7 +11,7 @@ character packs can be imported from the Settings window.
 - Global keyboard-reactive animation
 - Custom character packs with any number of actions and PNG frames
 - Transparent OBS Browser Source output
-- Movable desktop preview with lock and background controls
+- Optional desktop preview with configurable size, lock, and background controls
 - System tray controls
 - Settings stored in `%APPDATA%\ZX Anim`
 - Windows installer and portable release builds
@@ -31,6 +31,15 @@ python zx_anim.py
 - `Ctrl+G`: Change the desktop preview background
 - Mouse drag: Move the unlocked preview
 - Mouse wheel: Change animation speed
+- System tray **Show Desktop Preview**: Open the local testing preview
+
+Rapid alternating taps are visually rate-limited by the **Rapid tap
+smoothing** setting. The default is `70 ms`; set it to `0` to restore direct
+frame changes for every key event.
+
+The desktop preview is hidden on startup by default. This does not affect the
+OBS Browser Source. Use the system tray when you need to test the animation
+locally.
 
 ## OBS Setup
 
@@ -113,44 +122,3 @@ as the primary installation method.
 
 Pushing a tag such as `v3.0.0` runs the GitHub Actions release workflow, builds
 the installer and portable ZIP, and uploads both to GitHub Releases.
-
-## Maintaining the README
-
-Update this file whenever a change affects installation, controls, OBS setup,
-character pack structure, or the development workflow.
-
-For a normal feature update:
-
-1. Update **Features** when user-visible behavior changes.
-2. Update **Controls** when shortcuts or input behavior change.
-3. Update **OBS Setup** when the capture workflow changes.
-4. Update **Custom Characters** when the manifest format changes.
-5. Update **Build** when dependencies or packaging commands change.
-6. Replace `preview/preview.gif` when the interface or default animation
-   changes significantly.
-
-Keep the README focused on current behavior. Historical changes belong in the
-GitHub Release notes rather than being appended to this file.
-
-## Release Checklist
-
-1. Update `zxanim/__init__.py` with the new semantic version.
-2. Update the fallback `AppVersion` in `installer/zx_anim.iss`.
-3. Update the README if user-facing behavior changed.
-4. Run the tests and build:
-
-   ```powershell
-   python -m unittest discover -s tests
-   pyinstaller --clean --noconfirm zx_anim.spec
-   ```
-
-5. Commit and push the changes.
-6. Create and push a matching version tag:
-
-   ```powershell
-   git tag -a v3.0.0 -m "Release v3.0.0"
-   git push origin main
-   git push origin v3.0.0
-   ```
-
-The tag version is passed to Inno Setup automatically by the release workflow.

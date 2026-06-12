@@ -3,6 +3,7 @@ import os
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QGuiApplication, QIcon
 from PyQt5.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDialog,
     QFileDialog,
@@ -12,6 +13,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QSpinBox,
     QVBoxLayout,
 )
 
@@ -63,6 +65,35 @@ class SettingsWindow(QDialog):
         form.addRow(QLabel("Key bindings"))
         form.addRow(self.keys_layout)
 
+        self.smoothing_input = QSpinBox()
+        self.smoothing_input.setRange(0, 200)
+        self.smoothing_input.setSingleStep(10)
+        self.smoothing_input.setSuffix(" ms")
+        self.smoothing_input.setSpecialValueText("Off")
+        self.smoothing_input.setValue(
+            int(self.config.settings.get("rapid_tap_smoothing_ms", 70))
+        )
+        self.smoothing_input.setToolTip(
+            "Limits visual frame changes during fast alternating taps. "
+            "Input detection remains immediate."
+        )
+        form.addRow("Rapid tap smoothing:", self.smoothing_input)
+
+        self.preview_scale_input = QSpinBox()
+        self.preview_scale_input.setRange(25, 100)
+        self.preview_scale_input.setSingleStep(5)
+        self.preview_scale_input.setSuffix("%")
+        self.preview_scale_input.setValue(
+            int(self.config.settings.get("preview_scale_percent", 60))
+        )
+        form.addRow("Desktop preview size:", self.preview_scale_input)
+
+        self.preview_startup_input = QCheckBox("Show preview when ZX Anim starts")
+        self.preview_startup_input.setChecked(
+            bool(self.config.settings.get("show_preview_on_startup", False))
+        )
+        form.addRow("", self.preview_startup_input)
+
         obs_row = QHBoxLayout()
         obs_field = QLineEdit(self.obs_url)
         obs_field.setReadOnly(True)
@@ -108,6 +139,15 @@ class SettingsWindow(QDialog):
             return
         self.config.settings["character"] = self.character_combo.currentData()
         self.config.settings["keys"] = new_keys
+        self.config.settings["rapid_tap_smoothing_ms"] = (
+            self.smoothing_input.value()
+        )
+        self.config.settings["preview_scale_percent"] = (
+            self.preview_scale_input.value()
+        )
+        self.config.settings["show_preview_on_startup"] = (
+            self.preview_startup_input.isChecked()
+        )
         self.config.save_settings()
         self.settings_applied.emit()
         self.accept()

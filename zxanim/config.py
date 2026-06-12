@@ -9,6 +9,9 @@ from .paths import app_data_dir
 DEFAULT_SETTINGS = {
     "fps": 60,
     "frame_speed": 5,
+    "rapid_tap_smoothing_ms": 70,
+    "preview_scale_percent": 60,
+    "show_preview_on_startup": False,
     "keys": {"q": "left", "w": "right"},
     "bg_mode": 0,
     "character": DEFAULT_CHARACTER_ID,

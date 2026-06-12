@@ -1,4 +1,5 @@
 import winsound
+from time import monotonic_ns
 
 from PyQt5.QtCore import QRect, Qt, QTimer
 from PyQt5.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
@@ -7,6 +8,7 @@ from PyQt5.QtWidgets import QAction, QApplication, QMenu, QStyle, QSystemTrayIco
 from .constants import BACKGROUND_NAMES
 from .paths import resource_path
 from .settings import SettingsWindow
+from .smoothing import RapidTapSmoother
 
 
 class OverlayWindow(QWidget):
@@ -24,6 +26,9 @@ class OverlayWindow(QWidget):
         self.active_actions = []
         self.current_action = ""
         self.frame_counter = 0
+        self.tap_smoother = RapidTapSmoother(
+            self.settings.get("rapid_tap_smoothing_ms", 70)
+        )
         self.drag_position = None
         self.notification = ""
         self.notification_timer = 0
@@ -33,7 +38,6 @@ class OverlayWindow(QWidget):
             Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.resize(585, 427)
         icon_path = resource_path("icon.ico")
         if icon_path.exists():
             self.setWindowIcon(QIcon(str(icon_path)))
@@ -69,10 +73,21 @@ class OverlayWindow(QWidget):
                 QPixmap(str(self.pack.root / frame)) for frame in action.frames
             ]
             self.indices[action_id] = 0
-        self.resize(self.pack.width, self.pack.height)
+        scale = max(
+            25,
+            min(100, int(self.settings.get("preview_scale_percent", 60))),
+        )
+        self.resize(
+            max(1, self.pack.width * scale // 100),
+            max(1, self.pack.height * scale // 100),
+        )
         self.active_actions.clear()
         self.current_action = self.pack.default_action
         self.frame_counter = 0
+        self.tap_smoother.set_interval(
+            self.settings.get("rapid_tap_smoothing_ms", 70)
+        )
+        self.tap_smoother.reset()
         self.input_handler.update_key_map(self.settings.get("keys", {}))
         self.animation_timer.setInterval(self._timer_interval())
         self._publish_frame()
@@ -91,6 +106,10 @@ class OverlayWindow(QWidget):
             )
 
         tray_menu = QMenu()
+        self.preview_action = QAction(self._preview_action_text(), self)
+        self.preview_action.triggered.connect(self.toggle_preview)
+        tray_menu.addAction(self.preview_action)
+
         self.lock_action = QAction(self._lock_action_text(), self)
         self.lock_action.triggered.connect(self.on_toggle_lock)
         tray_menu.addAction(self.lock_action)
@@ -130,6 +149,15 @@ class OverlayWindow(QWidget):
         self.settings_window.settings_applied.connect(self.reload_character)
         self.settings_window.show()
 
+    def toggle_preview(self):
+        if self.isVisible():
+            self.hide()
+        else:
+            self.show()
+            self.raise_()
+            self.activateWindow()
+        self.preview_action.setText(self._preview_action_text())
+
     def quit_app(self):
         self.config.save_position(self.x(), self.y(), self.locked)
         self.input_handler.close()
@@ -143,22 +171,26 @@ class OverlayWindow(QWidget):
             return
         if action not in self.active_actions:
             self.active_actions.append(action)
-        self.current_action = action
-        self.frame_counter = 0
-        self._advance_frame()
+        transition = self.tap_smoother.request(
+            action,
+            True,
+            self._now_ms(),
+        )
+        self._apply_transition(transition)
 
     def on_key_release(self, action):
         if action in self.active_actions:
             self.active_actions.remove(action)
         if self.current_action == action:
-            self.current_action = (
-                self.active_actions[-1]
-                if self.active_actions
-                else self.pack.default_action
-            )
-            self.frame_counter = 0
-            self._publish_frame()
-            self.update()
+            if self.active_actions:
+                transition = self.tap_smoother.request(
+                    self.active_actions[-1],
+                    False,
+                    self._now_ms(),
+                )
+                self._apply_transition(transition)
+            else:
+                self.tap_smoother.release_to_idle(self._now_ms())
 
     def on_toggle_lock(self):
         self.locked = not self.locked
@@ -182,6 +214,14 @@ class OverlayWindow(QWidget):
 
     def update_animation(self):
         needs_update = False
+        transition = self.tap_smoother.poll(
+            self.pack.default_action,
+            bool(self.active_actions),
+            self._now_ms(),
+        )
+        if transition:
+            self._apply_transition(transition)
+            needs_update = True
         if self.active_actions and self.frames.get(self.current_action):
             self.frame_counter += 1
             if self.frame_counter >= int(self.settings.get("frame_speed", 5)):
@@ -260,6 +300,16 @@ class OverlayWindow(QWidget):
         self.quit_app()
         event.accept()
 
+    def showEvent(self, event):
+        if hasattr(self, "preview_action"):
+            self.preview_action.setText(self._preview_action_text())
+        super().showEvent(event)
+
+    def hideEvent(self, event):
+        if hasattr(self, "preview_action"):
+            self.preview_action.setText(self._preview_action_text())
+        super().hideEvent(event)
+
     def _advance_frame(self):
         frame_list = self.frames.get(self.current_action, [])
         if frame_list:
@@ -268,6 +318,20 @@ class OverlayWindow(QWidget):
             ) % len(frame_list)
         self._publish_frame()
         self.update()
+
+    def _apply_transition(self, transition):
+        if transition is None:
+            return
+        action, advance = transition
+        if action not in self.frames:
+            return
+        self.current_action = action
+        self.frame_counter = 0
+        if advance:
+            self._advance_frame()
+        else:
+            self._publish_frame()
+            self.update()
 
     def _publish_frame(self):
         action = self.pack.actions[self.current_action]
@@ -283,3 +347,10 @@ class OverlayWindow(QWidget):
 
     def _lock_action_text(self):
         return "Unlock Position" if self.locked else "Lock Position"
+
+    def _preview_action_text(self):
+        return "Hide Desktop Preview" if self.isVisible() else "Show Desktop Preview"
+
+    @staticmethod
+    def _now_ms():
+        return monotonic_ns() // 1_000_000

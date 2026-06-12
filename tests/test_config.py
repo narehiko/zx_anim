@@ -36,6 +36,12 @@ class ConfigManagerTests(unittest.TestCase):
                 {"q": "left", "w": "right"},
             )
 
+    def test_desktop_preview_is_hidden_by_default(self):
+        with tempfile.TemporaryDirectory() as data:
+            config = ConfigManager(data_dir=data, legacy_dir=data)
+            self.assertFalse(config.settings["show_preview_on_startup"])
+            self.assertEqual(config.settings["preview_scale_percent"], 60)
+
 
 if __name__ == "__main__":
     unittest.main()

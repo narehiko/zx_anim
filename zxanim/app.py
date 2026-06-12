@@ -40,5 +40,6 @@ def run():
         obs_server,
         obs_state,
     )
-    window.show()
+    if config.settings.get("show_preview_on_startup", False):
+        window.show()
     return application.exec_()
