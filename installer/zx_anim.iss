@@ -1,6 +1,6 @@
 #define AppName "ZX Anim"
 #ifndef AppVersion
-  #define AppVersion "3.0.0"
+  #define AppVersion "3.0.1"
 #endif
 #define AppPublisher "narehiko"
 #define AppExeName "ZX Anim.exe"
