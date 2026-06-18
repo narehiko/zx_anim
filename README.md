@@ -9,7 +9,9 @@ character packs can be imported from the Settings window.
 ## Features
 
 - Global keyboard-reactive animation
+- GIF import for quick character creation
 - Custom character packs with any number of actions and PNG frames
+- Optional WAV tap and hold sounds
 - Transparent OBS Browser Source output
 - Optional desktop preview with configurable size, lock, and background controls
 - System tray controls
@@ -54,8 +56,14 @@ Window Capture support for translucent Qt windows.
 
 ## Custom Characters
 
-Create a folder with a `character.json` file and PNG frames, then use
-**Settings > Import Character**.
+The easiest option is **Settings > Import GIF**. ZX Anim converts the GIF into
+PNG frames and creates a responsive two-key character automatically.
+
+Transparent GIFs are recommended for OBS Browser Source. Green-screen GIFs also
+work if you prefer using a Chroma Key filter in OBS.
+
+For advanced characters, create a folder with a `character.json` file and PNG
+frames, then use **Settings > Import Character**.
 
 ```text
 my-character/

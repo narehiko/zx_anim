@@ -41,6 +41,9 @@ class ConfigManagerTests(unittest.TestCase):
             config = ConfigManager(data_dir=data, legacy_dir=data)
             self.assertFalse(config.settings["show_preview_on_startup"])
             self.assertEqual(config.settings["preview_scale_percent"], 60)
+            self.assertEqual(config.settings["tap_sound_path"], "")
+            self.assertEqual(config.settings["hold_sound_path"], "")
+            self.assertEqual(config.settings["hold_sound_delay_ms"], 180)
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
 PyQt5==5.15.11
 keyboard==0.13.5
 PyInstaller==6.18.0
+Pillow==11.3.0

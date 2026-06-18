@@ -1,4 +1,5 @@
 import winsound
+from pathlib import Path
 from time import monotonic_ns
 
 from PyQt5.QtCore import QRect, Qt, QTimer
@@ -33,6 +34,8 @@ class OverlayWindow(QWidget):
         self.notification = ""
         self.notification_timer = 0
         self.settings_window = None
+        self.hold_started_at = {}
+        self.hold_sound_played = set()
 
         self.setWindowFlags(
             Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
@@ -171,6 +174,9 @@ class OverlayWindow(QWidget):
             return
         if action not in self.active_actions:
             self.active_actions.append(action)
+            self.hold_started_at[action] = self._now_ms()
+            self.hold_sound_played.discard(action)
+            self._play_sound(self.settings.get("tap_sound_path", ""))
         transition = self.tap_smoother.request(
             action,
             True,
@@ -181,6 +187,8 @@ class OverlayWindow(QWidget):
     def on_key_release(self, action):
         if action in self.active_actions:
             self.active_actions.remove(action)
+        self.hold_started_at.pop(action, None)
+        self.hold_sound_played.discard(action)
         if self.current_action == action:
             if self.active_actions:
                 transition = self.tap_smoother.request(
@@ -222,6 +230,7 @@ class OverlayWindow(QWidget):
         if transition:
             self._apply_transition(transition)
             needs_update = True
+        self._update_hold_sounds()
         if self.active_actions and self.frames.get(self.current_action):
             self.frame_counter += 1
             if self.frame_counter >= int(self.settings.get("frame_speed", 5)):
@@ -354,3 +363,27 @@ class OverlayWindow(QWidget):
     @staticmethod
     def _now_ms():
         return monotonic_ns() // 1_000_000
+
+    def _update_hold_sounds(self):
+        sound_path = self.settings.get("hold_sound_path", "")
+        if not sound_path:
+            return
+        now_ms = self._now_ms()
+        delay_ms = int(self.settings.get("hold_sound_delay_ms", 180))
+        for action in list(self.active_actions):
+            if action in self.hold_sound_played:
+                continue
+            started_at = self.hold_started_at.get(action, now_ms)
+            if now_ms - started_at >= delay_ms:
+                self.hold_sound_played.add(action)
+                self._play_sound(sound_path)
+
+    def _play_sound(self, sound_path):
+        if not sound_path:
+            return
+        path = Path(sound_path)
+        if path.exists():
+            winsound.PlaySound(
+                str(path),
+                winsound.SND_ASYNC | winsound.SND_FILENAME,
+            )

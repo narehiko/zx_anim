@@ -1,4 +1,6 @@
 import os
+import shutil
+from pathlib import Path
 
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QGuiApplication, QIcon
@@ -14,10 +16,12 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSpinBox,
+    QTextBrowser,
     QVBoxLayout,
 )
 
 from .characters import CharacterPackError
+from .gif_importer import GifImportError, import_gif_as_character
 from .paths import resource_path
 
 
@@ -55,10 +59,16 @@ class SettingsWindow(QDialog):
         character_buttons = QHBoxLayout()
         import_button = QPushButton("Import Character")
         import_button.clicked.connect(self._import_character)
+        import_gif_button = QPushButton("Import GIF")
+        import_gif_button.clicked.connect(self._import_gif)
         open_button = QPushButton("Open Character Folder")
         open_button.clicked.connect(self._open_character_folder)
+        help_button = QPushButton("Import Help")
+        help_button.clicked.connect(self._show_import_help)
         character_buttons.addWidget(import_button)
+        character_buttons.addWidget(import_gif_button)
         character_buttons.addWidget(open_button)
+        character_buttons.addWidget(help_button)
         form.addRow("", character_buttons)
 
         self.keys_layout = QFormLayout()
@@ -93,6 +103,26 @@ class SettingsWindow(QDialog):
             bool(self.config.settings.get("show_preview_on_startup", False))
         )
         form.addRow("", self.preview_startup_input)
+
+        self.tap_sound_field = QLineEdit(self.config.settings.get("tap_sound_path", ""))
+        self.tap_sound_field.setReadOnly(True)
+        form.addRow("Tap sound:", self._file_row(self.tap_sound_field, self._choose_tap_sound))
+
+        self.hold_sound_field = QLineEdit(self.config.settings.get("hold_sound_path", ""))
+        self.hold_sound_field.setReadOnly(True)
+        form.addRow(
+            "Hold sound:",
+            self._file_row(self.hold_sound_field, self._choose_hold_sound),
+        )
+
+        self.hold_delay_input = QSpinBox()
+        self.hold_delay_input.setRange(0, 1000)
+        self.hold_delay_input.setSingleStep(20)
+        self.hold_delay_input.setSuffix(" ms")
+        self.hold_delay_input.setValue(
+            int(self.config.settings.get("hold_sound_delay_ms", 180))
+        )
+        form.addRow("Hold sound delay:", self.hold_delay_input)
 
         obs_row = QHBoxLayout()
         obs_field = QLineEdit(self.obs_url)
@@ -148,6 +178,9 @@ class SettingsWindow(QDialog):
         self.config.settings["show_preview_on_startup"] = (
             self.preview_startup_input.isChecked()
         )
+        self.config.settings["tap_sound_path"] = self.tap_sound_field.text()
+        self.config.settings["hold_sound_path"] = self.hold_sound_field.text()
+        self.config.settings["hold_sound_delay_ms"] = self.hold_delay_input.value()
         self.config.save_settings()
         self.settings_applied.emit()
         self.accept()
@@ -171,5 +204,119 @@ class SettingsWindow(QDialog):
             self.character_combo.findData(pack.pack_id)
         )
 
+    def _import_gif(self):
+        source, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select a GIF",
+            "",
+            "GIF files (*.gif)",
+        )
+        if not source:
+            return
+        try:
+            pack_id = import_gif_as_character(source, self.repository.user_dir)
+            self.repository.refresh()
+        except (GifImportError, OSError) as error:
+            QMessageBox.critical(self, "GIF Import Failed", str(error))
+            return
+        self._reload_character_combo(pack_id)
+        QMessageBox.information(
+            self,
+            "GIF Imported",
+            "The GIF was converted into a responsive character. "
+            "Set the key bindings and save when you are ready.",
+        )
+
     def _open_character_folder(self):
         os.startfile(str(self.repository.user_dir))
+
+    def _show_import_help(self):
+        dialog = ImportHelpDialog(self)
+        dialog.exec_()
+
+    def _reload_character_combo(self, selected_pack_id):
+        self.character_combo.clear()
+        for available_pack in self.repository.all():
+            self.character_combo.addItem(available_pack.name, available_pack.pack_id)
+        self.character_combo.setCurrentIndex(
+            self.character_combo.findData(selected_pack_id)
+        )
+
+    def _file_row(self, field, chooser):
+        row = QHBoxLayout()
+        choose_button = QPushButton("Choose WAV")
+        clear_button = QPushButton("Clear")
+        choose_button.clicked.connect(chooser)
+        clear_button.clicked.connect(lambda: field.setText(""))
+        row.addWidget(field)
+        row.addWidget(choose_button)
+        row.addWidget(clear_button)
+        return row
+
+    def _choose_tap_sound(self):
+        self._choose_sound(self.tap_sound_field)
+
+    def _choose_hold_sound(self):
+        self._choose_sound(self.hold_sound_field)
+
+    def _choose_sound(self, field):
+        source, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select a WAV sound",
+            "",
+            "WAV files (*.wav)",
+        )
+        if not source:
+            return
+        try:
+            field.setText(str(self._copy_sound(source)))
+        except OSError as error:
+            QMessageBox.critical(self, "Sound Import Failed", str(error))
+
+    def _copy_sound(self, source):
+        source_path = Path(source)
+        audio_dir = self.config.data_dir / "audio"
+        audio_dir.mkdir(parents=True, exist_ok=True)
+        destination = audio_dir / source_path.name
+        counter = 2
+        while destination.exists():
+            destination = audio_dir / f"{source_path.stem}-{counter}{source_path.suffix}"
+            counter += 1
+        shutil.copy2(source_path, destination)
+        return destination
+
+
+class ImportHelpDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Character Import Help")
+        self.setMinimumSize(520, 440)
+        layout = QVBoxLayout(self)
+        browser = QTextBrowser()
+        browser.setOpenExternalLinks(True)
+        browser.setHtml(
+            """
+            <h2>Importing a GIF</h2>
+            <ol>
+              <li>Prepare one animated GIF.</li>
+              <li>Transparent GIF is recommended for OBS Browser Source.</li>
+              <li>Green-screen GIF also works if you prefer chroma key editing.</li>
+              <li>Click <b>Import GIF</b>, choose the file, then set your keys.</li>
+              <li>Use <b>Rapid tap smoothing</b> if streams look shaky.</li>
+            </ol>
+            <h3>Best GIF Settings</h3>
+            <table border="1" cellspacing="0" cellpadding="6">
+              <tr><td>Background</td><td>Transparent is best. Green is okay.</td></tr>
+              <tr><td>Canvas</td><td>Keep empty space around the character small.</td></tr>
+              <tr><td>Frames</td><td>Short loops feel more responsive for tapping.</td></tr>
+              <tr><td>Size</td><td>Use a reasonable resolution, such as 512px wide.</td></tr>
+            </table>
+            <h3>Audio</h3>
+            <p>Use WAV files. Tap sound plays on key press. Hold sound plays once
+            after the hold delay while a key is still pressed.</p>
+            """
+        )
+        close_button = QPushButton("Close")
+        close_button.clicked.connect(self.accept)
+        layout.addWidget(browser)
+        layout.addWidget(close_button)
